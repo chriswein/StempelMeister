@@ -107,7 +107,7 @@ function redrawCanvas(
   let fontSize = 12
   let fontMetrics: TextMetrics
   const safetyX = 8
-  const safetyY = 2
+  const safetyY = 8
   const canvas = document.getElementById("texturecanvas") as HTMLCanvasElement;
 
   if (canvas == null) return; // Canvas not found?

@@ -30,14 +30,14 @@ const blur = ref(0)
     dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500
     dark:focus:border-blue-500" v-model="count as string">
       <label for="steps-range"
-        class="w-screen block my-5 text-sm font-medium text-gray-900 dark:text-white">Padding</label>
+        class="w-screen block my-5 text-sm font-medium text-gray-900 dark:text-white">Stamp height</label>
       <div class="grid grid-flow-row-dense grid-cols-5 gap-4 mb-5">
         <input id="steps-range" type="range" min="0" max="5" v-model="slider as number" step="0.5" class="col-span-4 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
 dark:bg-gray-700">
         <label class="block text-lg align-middle font-medium text-gray-900 dark:text-white">{{ slider }}</label>
       </div>
       <label for="height-range"
-        class="w-screen block my-5 text-sm font-medium text-gray-900 dark:text-white">Height</label>
+        class="w-screen block my-5 text-sm font-medium text-gray-900 dark:text-white">Embossing height</label>
       <div class="grid grid-flow-row-dense grid-cols-5 gap-4 mb-5">
         <input id="height-range" type="range" min="0" max="1" v-model="height as number" step="0.05" class="col-span-4 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
 dark:bg-gray-700">
