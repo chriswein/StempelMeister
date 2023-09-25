@@ -8,6 +8,7 @@ const props = defineProps<{
   padding: number
   height: number
   blurryness: number
+  font: string
 }>()
 import { onMounted, onUpdated } from 'vue'
 let stempel: THREE.Mesh<any, THREE.MeshBasicMaterial, THREE.Object3DEventMap>;
@@ -19,7 +20,7 @@ let aspectRatioX = 4
 let aspectRatioY = 1
 let DEBUG = false;
 
-function onDownloadButtonPressed() {
+function onDownloadButtonPressed(): ImageData | undefined {
   let copy = stempel.clone()
   const vertices = copy.geometry.attributes.position.array;
   const canvas = document.getElementById("texturecanvas") as HTMLCanvasElement;
@@ -29,10 +30,38 @@ function onDownloadButtonPressed() {
   // Access the canvas width and height
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
+  function flipImageHorizontal(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    // Draw the image onto the temporary canvas with horizontal flip
+    tempCtx.translate(canvas.width, 0);
+    tempCtx.scale(-1, 1);
+    tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
 
-  const pixelData = context.getImageData(0, 0, canvasWidth, canvasHeight).data;
+    // Draw the flipped image onto the main canvas
+    // ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
 
-  const heightmapData = pixelData // Assuming heightmap is grayscale
+    // Now you can get pixel data from the flipped image
+    const imageData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
+    return imageData;
+    // Process the pixel data as needed
+  }
+
+  //context.scale(-1, 1) // Flip it, so it looks correct on paper
+  const pixelData = flipImageHorizontal(canvas, context);//context.getImageData(0, 0, canvasWidth, canvasHeight).data;
+
+  if (!pixelData) { // guard case
+    console.error(
+      "Could not flip Canvas horizontally"
+    );
+    return;
+  }
+
+  const heightmapData = pixelData.data // Assuming heightmap is grayscale
 
 
   for (let i = 0; i < vertices.length; i += 3) {
@@ -66,15 +95,13 @@ function onDownloadButtonPressed() {
   document.body.appendChild(downloadLink);
 
   // To trigger the download automatically, you can do:
-  if(!DEBUG) downloadLink.click();
+  if (!DEBUG) downloadLink.click();
 
 }
 
 onUpdated(() => {
-  console.log("updated", props.msg)
   parametersUpdated = true
-  redrawCanvas(props.msg, props.blurryness)
-
+  redrawCanvas(props.msg, props.blurryness, props.font)
 })
 
 
@@ -85,7 +112,7 @@ onMounted(() => {
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth /
     window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth * 0.8 , window.innerHeight * 0.8);
+  renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
   renderer.setClearColor(0xe6f7eb)
   const app = document.querySelector<HTMLDivElement>("#canvas");
   app?.appendChild(renderer.domElement);
@@ -111,7 +138,7 @@ onMounted(() => {
   }
   addNewBody(bodySize / 2)
 
-  redrawCanvas(props.msg, props.blurryness)
+  redrawCanvas(props.msg, props.blurryness, props.font)
   const canvas = document.getElementById("texturecanvas") as HTMLCanvasElement;
   let material: any
   let createTexture = (canvas: HTMLCanvasElement, height: number) => {
@@ -160,13 +187,15 @@ onMounted(() => {
     }
   }
   animate();
-  redrawCanvas(props.msg, props.blurryness)
+  redrawCanvas(props.msg, props.blurryness, props.font)
 })
 
 </script>
 
 <template>
-  <canvas id="texturecanvas" width="400" height="100"></canvas>
+  <canvas id="texturecanvas" width="400" height="100" class="lg:m-4 mb-4"></canvas>
+  <div class="block mb-2 text-md font-medium
+    text-gray-900 dark:text-white">Preview:</div>
   <div id="canvas">
   </div>
   <button class="mt-4 bg-blue-300 hover:bg-blue-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center"

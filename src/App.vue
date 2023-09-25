@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import StempelView from './components/StempelView.vue'
+import FontSelection from './components/FontSelection.vue';
 import { ref } from 'vue'
-const count = ref("Stempel")
+const count = ref("Stamp text")
 const slider = ref(2.5)
 const height = ref(0.2)
 const blur = ref(0)
+const font = ref("Verdana")
+
+function fontChangedEvent(newfont: any) {
+  font.value = newfont.value
+}
 
 </script>
 
@@ -13,12 +19,12 @@ const blur = ref(0)
 
   </header>
 
-  <main>
-    <div class="container mx:auto overflow-x-hidden">
+  <main class="max-w-1280">
+    <div class="container mx:auto">
       <div class="mb-2">
         <label for="large-input" class="block mb-2 text-sm font-medium
-    text-gray-900 dark:text-white">Stempeltext (Maximal 24 Zeichen)</label><br>
-        <input type="text" id="large-input" size="24" maxlength="24" class="block w-full p-4
+    text-gray-900 dark:text-white">Stamp text (Maximum 15 Characters)</label><br>
+        <input type="text" id="large-input" size="15" maxlength="15" class="block w-full p-4
     text-gray-900
     border border-gray-300 rounded-lg bg-gray-50 sm:text-md focus:ring-blue-500
     focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600
@@ -55,7 +61,10 @@ dark:bg-gray-700">
 dark:text-white  text-center">{{ blur }}</label>
         </div>
       </div>
-      <StempelView :msg="count as string" :height="height as number" :padding="slider as number" :blurryness="blur" />
+      <FontSelection @font-changed="fontChangedEvent"></FontSelection>
+      <StempelView :msg="count as string" :height="height as number" :padding="slider as number" :blurryness="blur"
+        :font="font" />
+      <span class="text-sm p-4"> Note: The image will be flipped on export.</span>
     </div>
   </main>
 </template>
