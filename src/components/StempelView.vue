@@ -1,22 +1,26 @@
 <script setup lang="ts">
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { STLExporter } from "three/examples/jsm/exporters/STLExporter";
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 import { redrawCanvas } from '../utils'
 const props = defineProps<{
   msg: string
   padding: number
   height: number
   blurryness: number
+  font: string
 }>()
 import { onMounted, onUpdated } from 'vue'
 let stempel: THREE.Mesh<any, THREE.MeshBasicMaterial, THREE.Object3DEventMap>;
+let body: THREE.Mesh<any, THREE.MeshStandardMaterial, THREE.Object3DEventMap>;
+let sceneObject: THREE.Scene
 let parametersUpdated = false;
 let currentTexture: THREE.CanvasTexture
 let aspectRatioX = 4
 let aspectRatioY = 1
+let DEBUG = false;
 
-function onDownloadButtonPressed() {
+function onDownloadButtonPressed(): ImageData | undefined {
   let copy = stempel.clone()
   const vertices = copy.geometry.attributes.position.array;
   const canvas = document.getElementById("texturecanvas") as HTMLCanvasElement;
@@ -26,13 +30,38 @@ function onDownloadButtonPressed() {
   // Access the canvas width and height
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
+  function flipImageHorizontal(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    // Draw the image onto the temporary canvas with horizontal flip
+    tempCtx.translate(canvas.width, 0);
+    tempCtx.scale(-1, 1);
+    tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
 
+    // Draw the flipped image onto the main canvas
+    // ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
 
+    // Now you can get pixel data from the flipped image
+    const imageData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
+    return imageData;
+    // Process the pixel data as needed
+  }
 
-  // Get the entire canvas pixel data
-  const pixelData = context.getImageData(0, 0, canvasWidth, canvasHeight).data;
+  //context.scale(-1, 1) // Flip it, so it looks correct on paper
+  const pixelData = flipImageHorizontal(canvas, context);//context.getImageData(0, 0, canvasWidth, canvasHeight).data;
 
-  const heightmapData = pixelData // Assuming heightmap is grayscale
+  if (!pixelData) { // guard case
+    console.error(
+      "Could not flip Canvas horizontally"
+    );
+    return;
+  }
+
+  const heightmapData = pixelData.data // Assuming heightmap is grayscale
 
 
   for (let i = 0; i < vertices.length; i += 3) {
@@ -46,15 +75,16 @@ function onDownloadButtonPressed() {
     const yn = (aspectRatioY / 2 - y) / aspectRatioY * (canvasHeight - 1); // Adjust for your mesh size
     const pixelIndex = (Math.floor(yn) * canvasWidth + Math.floor(xn)) * 4;
 
-    let displacement = heightmapData[pixelIndex] / 255 * -props.height; // Adjust maxHeight as needed
-    // console.log(pixelIndex, displacement, heightmapData[pixelIndex])
-    if (displacement < -props.height * 0.7) displacement = -props.height;
+    let displacement = heightmapData[pixelIndex] / 255 * -props.height;
+
+    // To enshure enough contact to paper. 
+    if (Math.abs(displacement) < (props.height * 0.85)) displacement = 0;
+
     vertices[i + 2] = displacement;
   }
 
-  copy.geometry.attributes.position.needsUpdate = true;
   const exporter = new STLExporter();
-  const stlData = exporter.parse(copy);
+  const stlData = exporter.parse(sceneObject);
   const stlBlob = new Blob([stlData], { type: 'application/octet-stream' });
   const stlUrl = URL.createObjectURL(stlBlob);
 
@@ -63,22 +93,22 @@ function onDownloadButtonPressed() {
   downloadLink.download = 'exported_mesh.stl';
   downloadLink.textContent = 'Download STL';
   document.body.appendChild(downloadLink);
-  copy.clear()
+
   // To trigger the download automatically, you can do:
-  downloadLink.click();
+  if (!DEBUG) downloadLink.click();
 
 }
 
 onUpdated(() => {
-  console.log("updated", props.msg)
   parametersUpdated = true
-  redrawCanvas(props.msg, props.blurryness)
-
+  redrawCanvas(props.msg, props.blurryness, props.font)
 })
 
 
 onMounted(() => {
+  let bodySize = props.padding
   const scene = new THREE.Scene();
+  sceneObject = scene
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth /
     window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -87,9 +117,28 @@ onMounted(() => {
   const app = document.querySelector<HTMLDivElement>("#canvas");
   app?.appendChild(renderer.domElement);
 
+  if (DEBUG) {
+    const axesHelper = new THREE.AxesHelper(10); // Specify the size of the axes (1 unit in this case)
+    scene.add(axesHelper);
+  }
   const controls = new OrbitControls(camera, renderer.domElement);
-  const geometry = new THREE.BoxGeometry(aspectRatioX, aspectRatioY, 1);
-  redrawCanvas(props.msg, props.blurryness)
+
+  let addNewBody = (size: number) => {
+    const stampBodyMesh = new THREE.BoxGeometry(aspectRatioX, aspectRatioY, size * 2);
+    const stampBodyMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const stampBody = new THREE.Mesh(stampBodyMesh, stampBodyMaterial)
+    stampBody.position.set(0, 0, -size)
+    stampBody.renderOrder = 1
+    stampBody.receiveShadow = true
+    if (body) {
+      scene.remove(body)
+    }
+    body = stampBody
+    scene.add(stampBody)
+  }
+  addNewBody(bodySize / 2)
+
+  redrawCanvas(props.msg, props.blurryness, props.font)
   const canvas = document.getElementById("texturecanvas") as HTMLCanvasElement;
   let material: any
   let createTexture = (canvas: HTMLCanvasElement, height: number) => {
@@ -100,15 +149,17 @@ onMounted(() => {
 
     return material
   }
-  if (canvas) {
+  if (canvas) { // There is a canvas available
     material = createTexture(canvas, props.height)
   } else {
-    material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    material = new THREE.MeshBasicMaterial({ color: 0x000000 });
   }
   const planeGeometry = new THREE.PlaneGeometry(aspectRatioX, aspectRatioY, 256, 256);
-  const cube = new THREE.Mesh(planeGeometry, material);
-  stempel = cube;
-  scene.add(cube);
+  const stampFace = new THREE.Mesh(planeGeometry, material);
+  stampFace.position.set(0, 0, props.height)
+  stempel = stampFace;
+  stampFace.renderOrder = 2
+  scene.add(stampFace);
   const directionalLight = new THREE.DirectionalLight(0xeddc7e, 6); // Parameters: (color, intensity)
   directionalLight.position.set(3, 4, 3); // Set the direction of the light
   directionalLight.castShadow = true
@@ -118,6 +169,7 @@ onMounted(() => {
   camera.position.z = 5;
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
+
   stempel.castShadow = true
   stempel.receiveShadow = true
   function animate() {
@@ -129,18 +181,21 @@ onMounted(() => {
         let material = createTexture(canvas, props.height)
         stempel.material = material
       }
-      cube.position.set(0, props.height, 1)
+      stampFace.position.set(0, 0, props.height)
+      addNewBody((props.padding as number) / 2)
       parametersUpdated = false
     }
   }
   animate();
-  redrawCanvas(props.msg, props.blurryness)
+  redrawCanvas(props.msg, props.blurryness, props.font)
 })
 
 </script>
 
 <template>
-  <canvas id="texturecanvas" width="400" height="100"></canvas>
+  <canvas id="texturecanvas" width="400" height="100" class="lg:m-4 mb-4"></canvas>
+  <div class="block mb-2 text-md font-medium
+    text-gray-900 dark:text-white">Preview:</div>
   <div id="canvas">
   </div>
   <button class="mt-4 bg-blue-300 hover:bg-blue-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center"

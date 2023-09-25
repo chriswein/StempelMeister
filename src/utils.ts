@@ -1,5 +1,5 @@
 function Blur(imageData: ImageData, radius: number,
-  quantization: number = 24
+  quantization: number = 48
 ) {
   // Extract data from the input ImageData object
   const data = imageData.data;
@@ -107,12 +107,12 @@ function redrawCanvas(
   let fontSize = 12
   let fontMetrics: TextMetrics
   const safetyX = 8
-  const safetyY = 2
+  const safetyY = 8
   const canvas = document.getElementById("texturecanvas") as HTMLCanvasElement;
 
   if (canvas == null) return; // Canvas not found?
 
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", {willReadFrequently:true});
   if (ctx == null) return; // Context not available?
 
   // Clear the canvas
